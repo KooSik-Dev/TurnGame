@@ -13,10 +13,17 @@ public class Enemy : MonoBehaviour
     public int Speed = 8;
 
     public int Exp = 20;
+    public int Gold = 10;
 
     public bool isDie = false;
 
     public Slider HpSlider;
+    public Animator Animator;
+    public ParticleSystem EnemyDamege;
+    public ParticleSystem PlayerDamege;
+
+    public AudioSource PlayerDamegeAudio;
+    public AudioSource EnemyDamegeAudio;
 
     void Start()
     {
@@ -31,6 +38,11 @@ public class Enemy : MonoBehaviour
         if (isDie == true) return;
 
         if (TurnManager.instance.PlayerTurn == false) return;
+
+
+        EnemyDamege.Play();
+        EnemyDamegeAudio.volume = PlayerPrefs.GetFloat("SFX", 0.8f);
+        EnemyDamegeAudio.Play();
 
         int Type = PlayerPrefs.GetInt("Type", 0);
         int TypeNumber = PlayerPrefs.GetInt("TypeNumber", 0);
@@ -53,6 +65,10 @@ public class Enemy : MonoBehaviour
 
     public void NormalAttack()
     {
+        TurnManager.instance.PlayerTurn = false;
+
+        PlayerMove.instance.AttackAnimation();
+
         int Damage = PlayerManager.instance.Attack;
 
         TakeDamage(Damage);
@@ -174,6 +190,15 @@ public class Enemy : MonoBehaviour
     {
         if (isDie == true) return;
 
+        if (Animator != null)
+        {
+            Animator.Play("EnemyAttack");
+        }
+
+        PlayerDamege.Play();
+        PlayerDamegeAudio.volume = PlayerPrefs.GetFloat("SFX", 0.8f);
+        PlayerDamegeAudio.Play();
+
         PlayerManager.instance.TakeDamage(Attack);
 
         Debug.Log(gameObject.name + " 플레이어 공격 : " + Attack);
@@ -186,8 +211,9 @@ public class Enemy : MonoBehaviour
         isDie = true;
 
         PlayerManager.instance.AddExp(Exp);
+        PlayerManager.instance.AddGold(Gold);
 
-        Debug.Log(gameObject.name + " 사망 / 경험치 + " + Exp);
+        Debug.Log(gameObject.name + " 사망 / 경험치 + " + Exp + " / 골드 + " + Gold);
 
         gameObject.SetActive(false);
     }

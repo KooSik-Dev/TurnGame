@@ -9,11 +9,18 @@ public class PlayerManager : MonoBehaviour
     public int Exp = 0;
     public int NeedExp = 100;
 
+    public Text LevelText;
+    public Text ExpText;
+
     public int MaxHp = 100;
     public int Hp = 100;
 
+    public Text HpText;
+
     public int MaxMp = 50;
     public int Mp = 50;
+
+    public Text MpText;
 
     public int Attack = 20;
     public int Defense = 10;
@@ -23,6 +30,8 @@ public class PlayerManager : MonoBehaviour
     public float Dodge = 0.15f;
 
     public int Gold = 0;
+
+    public Text GoldText;
 
     public int RedPotion = 0;
     public int BluePotion = 0;
@@ -121,29 +130,39 @@ public class PlayerManager : MonoBehaviour
         }
     }
 
-    public void addGold(int GetGold)
+    public void AddGold(int GetGold)
     {
         Gold += GetGold;
+        UpdateUI();
     }
 
     public void UpdateUI()
     {
+        LevelText.text = Level.ToString();
         if (HpSlider != null)
         {
             HpSlider.maxValue = MaxHp;
             HpSlider.value = Hp;
+            HpText.text = Hp.ToString();
         }
 
         if (MpSlider != null)
         {
             MpSlider.maxValue = MaxMp;
             MpSlider.value = Mp;
+            MpText.text = Mp.ToString();
         }
 
         if (ExpSlider != null)
         {
             ExpSlider.maxValue = NeedExp;
             ExpSlider.value = Exp;
+            ExpText.text = Exp.ToString();
+        }
+
+        if (GoldText != null)
+        {
+            GoldText.text = Gold.ToString();
         }
     }
 }
