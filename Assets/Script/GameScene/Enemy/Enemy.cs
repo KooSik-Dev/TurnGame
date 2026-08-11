@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 
 public class Enemy : MonoBehaviour
@@ -29,8 +29,18 @@ public class Enemy : MonoBehaviour
     {
         Hp = MaxHp;
 
-        HpSlider.maxValue = MaxHp;
-        HpSlider.value = Hp;
+        SetupEnemyUI();
+
+        if (HpSlider != null)
+        {
+            HpSlider.maxValue = MaxHp;
+            HpSlider.value = Hp;
+        }
+    }
+
+    private void OnMouseDown()
+    {
+        ClickButton();
     }
 
     public void ClickButton()
@@ -40,9 +50,16 @@ public class Enemy : MonoBehaviour
         if (TurnManager.instance.PlayerTurn == false) return;
 
 
-        EnemyDamege.Play();
-        EnemyDamegeAudio.volume = PlayerPrefs.GetFloat("SFX", 0.8f);
-        EnemyDamegeAudio.Play();
+        if (EnemyDamege != null)
+        {
+            EnemyDamege.Play();
+        }
+
+        if (EnemyDamegeAudio != null)
+        {
+            EnemyDamegeAudio.volume = PlayerPrefs.GetFloat("SFX", 0.8f);
+            EnemyDamegeAudio.Play();
+        }
 
         int Type = PlayerPrefs.GetInt("Type", 0);
         int TypeNumber = PlayerPrefs.GetInt("TypeNumber", 0);
@@ -70,10 +87,18 @@ public class Enemy : MonoBehaviour
         PlayerMove.instance.AttackAnimation();
 
         int Damage = PlayerManager.instance.Attack;
+        bool IsCritical = Random.value < Mathf.Clamp01(PlayerManager.instance.GetCriticalChance());
+
+        if (IsCritical == true)
+        {
+            Damage *= 2;
+            TurnManager.instance.ShowBattleMessage("í¬ë¦¬í‹°ì»¬!");
+            Debug.Log("í¬ë¦¬í‹°ì»¬ ê³µê²©! ë°ë¯¸ì§€ : " + Damage);
+        }
 
         TakeDamage(Damage);
 
-        Debug.Log("±âº» °ø°Ý");
+        Debug.Log("ê¸°ë³¸ ê³µê²©");
 
         TurnManager.instance.EndTurn();
     }
@@ -82,55 +107,129 @@ public class Enemy : MonoBehaviour
     {
         if (Number == 1)
         {
-            Debug.Log("¹è±â");
+            if (PlayerManager.instance.UseMp(30) == false)
+            {
+                TurnManager.instance.ShowBattleMessage("MPê°€ ë¶€ì¡± í•©ë‹ˆë‹¤.");
+                return;
+            }
+            TurnManager.instance.PlayerTurn = false;
+
+            PlayerMove.instance.AttackAnimation();
+
+            int Damage = Mathf.RoundToInt(PlayerManager.instance.Attack * 1.7f);
+
+            TakeDamage(Damage);
+
+            TurnManager.instance.ShowBattleMessage("ë°°ê¸°!");
+            Debug.Log("ë°°ê¸° í”¼í•´ëŸ‰ : " + Damage);
+
+            TurnManager.instance.EndTurn();
+            return;
         }
         if (Number == 2)
         {
-            Debug.Log("°¡¸£±â");
+            if (PlayerManager.instance.UseMp(35) == false)
+            {
+                TurnManager.instance.ShowBattleMessage("MPê°€ ë¶€ì¡± í•©ë‹ˆë‹¤.");
+                return;
+            }
+
+            TurnManager.instance.PlayerTurn = false;
+
+            PlayerMove.instance.AttackAnimation();
+
+            int Danage = Mathf.RoundToInt(PlayerManager.instance.Attack * 1.4f);
+
+            Enemy[] enemies = { TurnManager.instance.Enemy1, TurnManager.instance.Enemy2, TurnManager.instance.Enemy3 };
+
+            foreach (Enemy targetEnemy in enemies)
+            {
+                if (targetEnemy != null && targetEnemy.isDie == false)
+                {
+                    targetEnemy.TakeDamage(Danage);
+                }
+            }
+
+            TurnManager.instance.ShowBattleMessage("ê°€ë¥´ê¸°");
+
+            Debug.Log("ê°€ë¥´ê¸° í”¼í•´ëŸ‰ : " + Danage);
+
+
+            TurnManager.instance.EndTurn();
+            return;
         }
         if (Number == 3)
         {
-            Debug.Log("³ë·Áº¸±â");
+            if (PlayerManager.instance.UseMp(25) == false)
+            {
+                TurnManager.instance.ShowBattleMessage("MPê°€ ë¶€ì¡±í•©ë‹ˆë‹¤.");
+                return;
+            }
+
+            TurnManager.instance.PlayerTurn = false;
+
+            PlayerManager.instance.StartCriticalBuff();
+
+            TurnManager.instance.ShowBattleMessage("ë…¸ë ¤ë³´ê¸°! í¬ë¦¬í‹°ì»¬ í™•ë¥  ì¦ê°€");
+
+            TurnManager.instance.EndTurn(false);
+            return;
+
         }
         if (Number == 4)
         {
-            Debug.Log("¸í»ó");
+            if (PlayerManager.instance.UseMp(45) == false)
+            {
+                TurnManager.instance.ShowBattleMessage("MPê°€ ë¶€ì¡±í•©ë‹ˆë‹¤.");
+                return;
+            }
+
+            TurnManager.instance.PlayerTurn = false;
+
+            int HealAmount = Mathf.RoundToInt(PlayerManager.instance.MaxHp * 0.3f);
+
+            PlayerManager.instance.Heal(HealAmount);
+
+            TurnManager.instance.ShowBattleMessage("ëª…ìƒ! ì²´ë ¥ " + HealAmount + " íšŒë³µ");
+
+            TurnManager.instance.EndTurn();
+            return;
         }
         if (Number == 5)
         {
-            Debug.Log("ÇÊ»ì±â");
+            Debug.Log("í•„ì‚´ê¸°");
         }
         if (Number == 6)
         {
-            Debug.Log("°¡µå");
+            Debug.Log("ê°€ë“œ");
         }
         if (Number == 7)
         {
-            Debug.Log("±â»çÈ¯»ý");
+            Debug.Log("ê¸°ì‚¬í™˜ìƒ");
         }
         if (Number == 8)
         {
-            Debug.Log("¾àÁ¡ °ÝÆÄ");
+            Debug.Log("ì•½ì  ê²©íŒŒ");
         }
         if (Number == 9)
         {
-            Debug.Log("È­¿°±¸");
+            Debug.Log("í™”ì—¼êµ¬");
         }
         if (Number == 10)
         {
-            Debug.Log("±Þ½À");
+            Debug.Log("ê¸‰ìŠµ");
         }
         if (Number == 11)
         {
-            Debug.Log("ÃÖÈÄÀÇ ÀÏ°Ý");
+            Debug.Log("ìµœí›„ì˜ ì¼ê²©");
         }
         if (Number == 12)
         {
-            Debug.Log("°ø¹æÀÏÃ¼");
+            Debug.Log("ê³µë°©ì¼ì²´");
         }
         if (Number == 13)
         {
-            Debug.Log("µÎ °³ÀÇ ½ÉÀå");
+            Debug.Log("ë‘ ê°œì˜ ì‹¬ìž¥");
         }
     }
 
@@ -138,23 +237,23 @@ public class Enemy : MonoBehaviour
     {
         if (Number == 1)
         {
-            Debug.Log("»¡°£ Æ÷¼Ç");
+            Debug.Log("ë¹¨ê°„ í¬ì…˜");
         }
         if (Number == 2)
         {
-            Debug.Log("ÆÄ¶õ Æ÷¼Ç");
+            Debug.Log("íŒŒëž€ í¬ì…˜");
         }
         if (Number == 3)
         {
-            Debug.Log("ÈûÀÇ Æ÷¼Ç");
+            Debug.Log("íž˜ì˜ í¬ì…˜");
         }
         if (Number == 4)
         {
-            Debug.Log("Áö½ÄÀÇ ¿µ¾à");
+            Debug.Log("ì§€ì‹ì˜ ì˜ì•½");
         }
         if (Number == 5)
         {
-            Debug.Log("È¸ÇÇÀÇ ¹°¾à");
+            Debug.Log("íšŒí”¼ì˜ ë¬¼ì•½");
         }
     }
 
@@ -176,9 +275,12 @@ public class Enemy : MonoBehaviour
             Hp = 0;
         }
 
-        HpSlider.value = Hp;
+        if (HpSlider != null)
+        {
+            HpSlider.value = Hp;
+        }
 
-        Debug.Log(gameObject.name + "µ¥¹ÌÁö : " + Damage + "/ ³²Àº HP : " + Hp);
+        Debug.Log(gameObject.name + "ë°ë¯¸ì§€ : " + Damage + "/ ë‚¨ì€ HP : " + Hp);
 
         if (Hp <= 0)
         {
@@ -195,13 +297,29 @@ public class Enemy : MonoBehaviour
             Animator.Play("EnemyAttack");
         }
 
-        PlayerDamege.Play();
-        PlayerDamegeAudio.volume = PlayerPrefs.GetFloat("SFX", 0.8f);
-        PlayerDamegeAudio.Play();
+        bool IsDodge = Random.value < Mathf.Clamp01(PlayerManager.instance.Dodge);
+
+        if (IsDodge == true)
+        {
+            TurnManager.instance.ShowBattleMessage("íšŒí”¼!");
+            Debug.Log("í”Œë ˆì´ì–´ê°€ " + gameObject.name + "ì˜ ê³µê²©ì„ íšŒí”¼í–ˆìŠµë‹ˆë‹¤!");
+            return;
+        }
+
+        if (PlayerDamege != null)
+        {
+            PlayerDamege.Play();
+        }
+
+        if (PlayerDamegeAudio != null)
+        {
+            PlayerDamegeAudio.volume = PlayerPrefs.GetFloat("SFX", 0.8f);
+            PlayerDamegeAudio.Play();
+        }
 
         PlayerManager.instance.TakeDamage(Attack);
 
-        Debug.Log(gameObject.name + " ÇÃ·¹ÀÌ¾î °ø°Ý : " + Attack);
+        Debug.Log(gameObject.name + " í”Œë ˆì´ì–´ ê³µê²© : " + Attack);
     }
 
     public void Die()
@@ -213,8 +331,48 @@ public class Enemy : MonoBehaviour
         PlayerManager.instance.AddExp(Exp);
         PlayerManager.instance.AddGold(Gold);
 
-        Debug.Log(gameObject.name + " »ç¸Á / °æÇèÄ¡ + " + Exp + " / °ñµå + " + Gold);
+        Debug.Log(gameObject.name + " ì‚¬ë§ / ê²½í—˜ì¹˜ + " + Exp + " / ê³¨ë“œ + " + Gold);
 
         gameObject.SetActive(false);
     }
+
+    public void ResetEnemy()
+    {
+        isDie = false;
+        Hp = MaxHp;
+
+        gameObject.SetActive(true);
+
+        SetupEnemyUI();
+
+        if (HpSlider != null)
+        {
+            HpSlider.maxValue = MaxHp;
+            HpSlider.value = Hp;
+        }
+
+        Debug.Log(gameObject.name + "ì´ˆê¸°í™”");
+    }
+
+    private void SetupEnemyUI()
+    {
+        Canvas[] EnemyCanvases = GetComponentsInChildren<Canvas>(true);
+
+        foreach (Canvas EnemyCanvas in EnemyCanvases)
+        {
+            EnemyCanvas.gameObject.SetActive(true);
+            EnemyCanvas.enabled = true;
+            EnemyCanvas.worldCamera = Camera.main;
+            EnemyCanvas.overrideSorting = true;
+            EnemyCanvas.sortingOrder = 100;
+
+            GraphicRaycaster Raycaster = EnemyCanvas.GetComponent<GraphicRaycaster>();
+            if (Raycaster != null)
+            {
+                Raycaster.enabled = true;
+                Raycaster.ignoreReversedGraphics = false;
+            }
+        }
+    }
 }
+

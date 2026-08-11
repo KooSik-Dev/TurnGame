@@ -29,6 +29,8 @@ public class PlayerManager : MonoBehaviour
     public float Critical = 0.1f;
     public float Dodge = 0.15f;
 
+    public int CriticalBuffTurns = 0;
+
     public int Gold = 0;
 
     public Text GoldText;
@@ -39,9 +41,58 @@ public class PlayerManager : MonoBehaviour
     public int KnowledgePotion = 0;
     public int DodgePotion = 0;
 
+    // 1~6Î≤àÏùÄ Í∏∞Î≥∏ Ïä§ÌÇ¨Ïù¥Í≥†, 7~13Î≤àÏùÄ ÏÉÅÏ†êÏóêÏÑú Íµ¨Îß§ÌïòÎäî Ïä§ÌÇ¨Ïù¥Îã§.
+    public bool ShopSkill7 = false;
+    public bool ShopSkill8 = false;
+    public bool ShopSkill9 = false;
+    public bool ShopSkill10 = false;
+    public bool ShopSkill11 = false;
+    public bool ShopSkill12 = false;
+    public bool ShopSkill13 = false;
+
     public Slider HpSlider;
     public Slider MpSlider;
     public Slider ExpSlider;
+
+
+
+
+
+
+
+    private int SaveLevel;
+    private int SaveExp;
+    private int SaveNeedExp;
+
+    private int SaveMaxHp;
+    private int SaveHp;
+
+    private int SaveMaxMp;
+    private int SaveMp;
+
+    private int SaveAttack;
+    private int SaveDefense;
+    private int SaveSpeed;
+
+    private float SaveCritical;
+    private float SaveDodge;
+
+    private int SaveGold;
+
+    private int SaveRedPotion;
+    private int SaveBluePotion;
+    private int SavePowerPotion;
+    private int SaveKnowledgePotion;
+    private int SaveDodgePotion;
+
+
+
+
+
+
+
+
+
 
     private void Awake()
     {
@@ -51,6 +102,69 @@ public class PlayerManager : MonoBehaviour
     private void Start()
     {
         UpdateUI();
+    }
+
+    public void SaveBattleState()
+    {
+        SaveLevel = Level;
+        SaveExp = Exp;
+        SaveNeedExp = NeedExp;
+
+        SaveMaxHp = MaxHp;
+        SaveHp = Hp;
+
+        SaveMaxMp = MaxMp;
+        SaveMp = Mp;
+
+        SaveAttack = Attack;
+        SaveDefense = Defense;
+        SaveSpeed = Speed;
+
+        SaveCritical = Critical;
+        SaveDodge = Dodge;
+
+        SaveGold = Gold;
+
+        SaveRedPotion = RedPotion;
+        SaveBluePotion = BluePotion;
+        SavePowerPotion = PowerPotion;
+        SaveKnowledgePotion = KnowledgePotion;
+        SaveDodgePotion = DodgePotion;
+
+        Debug.Log("ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ");
+    }
+
+    public void LoadBattleState()
+    {
+         Level = SaveLevel;
+         Exp = SaveExp;
+         NeedExp = SaveNeedExp;
+
+         MaxHp = SaveMaxHp;
+         Hp = SaveHp;
+
+         MaxMp = SaveMaxMp;
+         Mp = SaveMp;
+
+         Attack = SaveAttack;
+         Defense = SaveDefense;
+         Speed = SaveSpeed;
+
+         Critical = SaveCritical;
+         Dodge = SaveDodge;
+
+         Gold = SaveGold;
+
+         RedPotion = SaveRedPotion;
+         BluePotion = SaveBluePotion;
+         PowerPotion = SavePowerPotion;
+         KnowledgePotion = SaveKnowledgePotion;
+         DodgePotion = SaveDodgePotion;
+         CriticalBuffTurns = 0;
+
+        UpdateUI();
+
+        Debug.Log("ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ");
     }
 
     public void TakeDamage(int Damage)
@@ -65,7 +179,11 @@ public class PlayerManager : MonoBehaviour
 
         if (Hp <= 0)
         {
-            Debug.Log("«√∑π¿ÃæÓ ªÁ∏¡");
+            Debug.Log("ÔøΩ√∑ÔøΩÔøΩÃæÔøΩ ÔøΩÔøΩÔøΩ");
+            if (TurnManager.instance != null)
+            {
+                TurnManager.instance.BattleFail();
+            }
         }
     }
 
@@ -85,7 +203,7 @@ public class PlayerManager : MonoBehaviour
     {
         if (Mp < UseMp)
         {
-            Debug.Log("MP ∫Œ¡∑");
+            Debug.Log("MP ÔøΩÔøΩÔøΩÔøΩ");
 
             return false;
         }
@@ -122,7 +240,7 @@ public class PlayerManager : MonoBehaviour
 
         NeedExp += 100;
 
-        Debug.Log("∑π∫ß æ˜ : " +  Level);
+        Debug.Log("ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩ : " +  Level);
 
         if (Exp >= NeedExp)
         {
@@ -134,6 +252,93 @@ public class PlayerManager : MonoBehaviour
     {
         Gold += GetGold;
         UpdateUI();
+    }
+
+    public bool TrySpendGold(int Price)
+    {
+        if (Gold < Price)
+        {
+            return false;
+        }
+
+        Gold -= Price;
+        UpdateUI();
+        return true;
+    }
+
+    public void AddShopItem(int ItemNumber)
+    {
+        if (ItemNumber == 1) RedPotion++;
+        if (ItemNumber == 2) BluePotion++;
+        if (ItemNumber == 3) PowerPotion++;
+        if (ItemNumber == 4) KnowledgePotion++;
+        if (ItemNumber == 5) DodgePotion++;
+
+        UpdateUI();
+    }
+
+    public int GetItemCount(int ItemNumber)
+    {
+        if (ItemNumber == 1) return RedPotion;
+        if (ItemNumber == 2) return BluePotion;
+        if (ItemNumber == 3) return PowerPotion;
+        if (ItemNumber == 4) return KnowledgePotion;
+        if (ItemNumber == 5) return DodgePotion;
+        return 0;
+    }
+
+    public void AddShopSkill(int SkillNumber)
+    {
+        if (SkillNumber == 7) ShopSkill7 = true;
+        if (SkillNumber == 8) ShopSkill8 = true;
+        if (SkillNumber == 9) ShopSkill9 = true;
+        if (SkillNumber == 10) ShopSkill10 = true;
+        if (SkillNumber == 11) ShopSkill11 = true;
+        if (SkillNumber == 12) ShopSkill12 = true;
+        if (SkillNumber == 13) ShopSkill13 = true;
+    }
+
+    public bool HasShopSkill(int SkillNumber)
+    {
+        if (SkillNumber == 7) return ShopSkill7;
+        if (SkillNumber == 8) return ShopSkill8;
+        if (SkillNumber == 9) return ShopSkill9;
+        if (SkillNumber == 10) return ShopSkill10;
+        if (SkillNumber == 11) return ShopSkill11;
+        if (SkillNumber == 12) return ShopSkill12;
+        if (SkillNumber == 13) return ShopSkill13;
+        return false;
+    }
+
+    public void StartCriticalBuff()
+    {
+        CriticalBuffTurns = 3;
+    }
+
+    public float GetCriticalChance()
+    {
+        if (CriticalBuffTurns > 0)
+        {
+            return Critical + 0.25f;
+        }
+
+        return Critical;
+    }
+
+    public void CountCriticalBuffTurn()
+    {
+        if (CriticalBuffTurns > 0)
+        {
+            CriticalBuffTurns--;
+        }
+    }
+
+    public void RetryCurrentBattle()
+    {
+        if (TurnManager.instance != null)
+        {
+            TurnManager.instance.RetryBattle();
+        }
     }
 
     public void UpdateUI()
