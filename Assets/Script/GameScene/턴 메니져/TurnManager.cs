@@ -20,6 +20,8 @@ public class TurnManager : MonoBehaviour
     public bool PlayerTurn = false;
     public bool BattleEnded = false;
 
+    private bool InitialTurnStarted = false;
+
     private void OnEnable()
     {
         instance = this;
@@ -28,14 +30,18 @@ public class TurnManager : MonoBehaviour
 
     private void Start()
     {
+        // BeginBattle이 Start보다 먼저 호출된 경우 첫 턴을 중복 실행하지 않는다.
+        if (InitialTurnStarted)
+        {
+            return;
+        }
+
         if (WinUI != null) WinUI.SetActive(false);
         if (LossUI != null) LossUI.SetActive(false);
 
         PlayerManager.instance.SaveBattleState();
         BattleEnded = false;
-        PlayerTurn = true;
-
-        if (TurnText != null) TurnText.text = "플레이어 턴";
+        StartFirstTurnBySpeed();
     }
 
     private void UpdateStageText()
@@ -77,9 +83,33 @@ public class TurnManager : MonoBehaviour
     {
         if (CheckBattleClear()) return;
 
+        if (PlayerManager.instance != null && PlayerPrefs.GetInt("Type", 0) == 2)
+        {
+            int UsedSkillNumber = PlayerPrefs.GetInt("TypeNumber", 0);
+            PlayerManager.instance.StartSkillCooldown(UsedSkillNumber);
+        }
+
         if (CountBuffTurn && PlayerManager.instance != null)
         {
             PlayerManager.instance.CountCriticalBuffTurn();
+        }
+
+        if (PlayerManager.instance != null)
+        {
+            PlayerManager.instance.CountSkillCooldowns();
+        }
+
+        if (PlayerManager.instance != null && PlayerManager.instance.ExtraActions > 0)
+        {
+            PlayerManager.instance.ExtraActions--;
+            PlayerTurn = true;
+
+            if (TurnText != null)
+            {
+                TurnText.text = "추가 행동! 한 번 더 행동하세요";
+            }
+
+            return;
         }
 
         PlayerTurn = false;
@@ -100,26 +130,50 @@ public class TurnManager : MonoBehaviour
         if (Enemy1 != null && Enemy1.isDie == false)
         {
             ShowBattleMessage("적의 턴");
-            Enemy1.EnemyAttack();
+            Enemy1.PerformPlannedAction();
             yield return new WaitForSeconds(1f);
+
+            if (BattleEnded) yield break;
         }
 
         if (Enemy2 != null && Enemy2.isDie == false)
         {
             ShowBattleMessage("적의 턴");
-            Enemy2.EnemyAttack();
+            Enemy2.PerformPlannedAction();
             yield return new WaitForSeconds(1f);
+
+            if (BattleEnded) yield break;
         }
 
         if (Enemy3 != null && Enemy3.isDie == false)
         {
             ShowBattleMessage("적의 턴");
-            Enemy3.EnemyAttack();
+            Enemy3.PerformPlannedAction();
             yield return new WaitForSeconds(1f);
+
+            if (BattleEnded) yield break;
         }
 
+        if (PlayerManager.instance != null && PlayerManager.instance.GuardTurns > 0)
+        {
+            PlayerManager.instance.GuardTurns--;
+            Debug.Log("가드 남은 턴 : " + PlayerManager.instance.GuardTurns);
+        }
+
+        if (PlayerManager.instance != null && PlayerManager.instance.DefenseBuffTurns > 0)
+        {
+            PlayerManager.instance.DefenseBuffTurns--;
+            Debug.Log("공방일체 방어 증가 남은 턴 : " + PlayerManager.instance.DefenseBuffTurns);
+        }
+
+        if (PlayerManager.instance != null)
+        {
+            PlayerManager.instance.CountPotionBuffTurns();
+        }
+
+        PlanEnemyActions();
         PlayerTurn = true;
-        if (TurnText != null) TurnText.text = "플레이어 턴";
+        ShowPlayerTurnAndDefenseWarning();
     }
 
     public void BattleFail()
@@ -146,9 +200,7 @@ public class TurnManager : MonoBehaviour
         if (LossUI != null) LossUI.SetActive(false);
 
         BattleEnded = false;
-        PlayerTurn = true;
-
-        if (TurnText != null) TurnText.text = "플레이어 턴";
+        StartFirstTurnBySpeed();
         Debug.Log("전투를 다시 시작합니다.");
     }
 
@@ -162,6 +214,13 @@ public class TurnManager : MonoBehaviour
             PlayerManager.instance.Hp = PlayerManager.instance.MaxHp;
             PlayerManager.instance.Mp = PlayerManager.instance.MaxMp;
             PlayerManager.instance.CriticalBuffTurns = 0;
+            PlayerManager.instance.GuardTurns = 0;
+            PlayerManager.instance.DefenseBuffTurns = 0;
+            PlayerManager.instance.ExtraActions = 0;
+            PlayerManager.instance.PowerPotionTurns = 0;
+            PlayerManager.instance.KnowledgePotionTurns = 0;
+            PlayerManager.instance.DodgePotionTurns = 0;
+            PlayerManager.instance.ResetSkillCooldowns();
             PlayerManager.instance.UpdateUI();
 
             // 재도전해도 새 스테이지 시작 상태로 돌아오도록 저장한다.
@@ -174,10 +233,9 @@ public class TurnManager : MonoBehaviour
         if (LossUI != null) LossUI.SetActive(false);
 
         BattleEnded = false;
-        PlayerTurn = true;
         UpdateStageText();
 
-        if (TurnText != null) TurnText.text = "플레이어 턴";
+        StartFirstTurnBySpeed();
     }
 
     private void ResetEnemies()
@@ -185,5 +243,92 @@ public class TurnManager : MonoBehaviour
         if (Enemy1 != null) Enemy1.ResetEnemy();
         if (Enemy2 != null) Enemy2.ResetEnemy();
         if (Enemy3 != null) Enemy3.ResetEnemy();
+    }
+
+    private void PlanEnemyActions()
+    {
+        if (Enemy1 != null) Enemy1.PlanNextAction();
+        if (Enemy2 != null) Enemy2.PlanNextAction();
+        if (Enemy3 != null) Enemy3.PlanNextAction();
+    }
+
+    private void StartFirstTurnBySpeed()
+    {
+        InitialTurnStarted = true;
+        PlanEnemyActions();
+
+        int PlayerSpeed = PlayerManager.instance != null ? PlayerManager.instance.Speed : 0;
+        int FastestEnemySpeed = GetFastestEnemySpeed();
+
+        if (FastestEnemySpeed > PlayerSpeed)
+        {
+            PlayerTurn = false;
+            ShowBattleMessage("적 선공! 적 속도 " + FastestEnemySpeed + " / 플레이어 속도 " + PlayerSpeed);
+            Debug.Log("적 선공 : " + FastestEnemySpeed + " > " + PlayerSpeed);
+            StartCoroutine(EnemyTurn());
+        }
+        else
+        {
+            PlayerTurn = true;
+            ShowPlayerTurnAndDefenseWarning();
+            Debug.Log("플레이어 선공 : " + PlayerSpeed + " >= " + FastestEnemySpeed);
+        }
+    }
+
+    private int GetFastestEnemySpeed()
+    {
+        int FastestSpeed = 0;
+
+        AddEnemySpeed(Enemy1, ref FastestSpeed);
+        AddEnemySpeed(Enemy2, ref FastestSpeed);
+        AddEnemySpeed(Enemy3, ref FastestSpeed);
+
+        return FastestSpeed;
+    }
+
+    private void AddEnemySpeed(Enemy TargetEnemy, ref int FastestSpeed)
+    {
+        if (TargetEnemy == null || TargetEnemy.isDie)
+        {
+            return;
+        }
+
+        if (TargetEnemy.Speed > FastestSpeed)
+        {
+            FastestSpeed = TargetEnemy.Speed;
+        }
+    }
+
+    private void ShowPlayerTurnAndDefenseWarning()
+    {
+        string GuardEnemies = "";
+
+        AddGuardEnemyName(Enemy1, ref GuardEnemies);
+        AddGuardEnemyName(Enemy2, ref GuardEnemies);
+        AddGuardEnemyName(Enemy3, ref GuardEnemies);
+
+        if (string.IsNullOrEmpty(GuardEnemies))
+        {
+            ShowBattleMessage("플레이어 턴");
+        }
+        else
+        {
+            ShowBattleMessage("플레이어 턴 | 방어 예정: " + GuardEnemies);
+        }
+    }
+
+    private void AddGuardEnemyName(Enemy TargetEnemy, ref string GuardEnemies)
+    {
+        if (TargetEnemy == null || TargetEnemy.isDie || TargetEnemy.NextActionIsGuard == false)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(GuardEnemies) == false)
+        {
+            GuardEnemies += ", ";
+        }
+
+        GuardEnemies += TargetEnemy.gameObject.name;
     }
 }

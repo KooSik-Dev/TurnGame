@@ -24,12 +24,18 @@ public class PlayerManager : MonoBehaviour
 
     public int Attack = 20;
     public int Defense = 10;
+    public int GuardTurns = 0;
+    public int DefenseBuffTurns = 0;
+    public int ExtraActions = 0;
     public int Speed = 10;
 
     public float Critical = 0.1f;
     public float Dodge = 0.15f;
 
     public int CriticalBuffTurns = 0;
+    public int PowerPotionTurns = 0;
+    public int KnowledgePotionTurns = 0;
+    public int DodgePotionTurns = 0;
 
     public int Gold = 0;
 
@@ -84,6 +90,9 @@ public class PlayerManager : MonoBehaviour
     private int SavePowerPotion;
     private int SaveKnowledgePotion;
     private int SaveDodgePotion;
+
+    // 인덱스는 스킬 번호(1~13), 값은 남은 쿨타임이다.
+    private int[] SkillCooldowns = new int[14];
 
 
 
@@ -161,6 +170,13 @@ public class PlayerManager : MonoBehaviour
          KnowledgePotion = SaveKnowledgePotion;
          DodgePotion = SaveDodgePotion;
          CriticalBuffTurns = 0;
+         GuardTurns = 0;
+         DefenseBuffTurns = 0;
+         ExtraActions = 0;
+         PowerPotionTurns = 0;
+         KnowledgePotionTurns = 0;
+         DodgePotionTurns = 0;
+         ResetSkillCooldowns();
 
         UpdateUI();
 
@@ -169,7 +185,28 @@ public class PlayerManager : MonoBehaviour
 
     public void TakeDamage(int Damage)
     {
-        Hp -= Damage;
+        float CurrentDefense = Defense;
+
+        if (DefenseBuffTurns > 0)
+        {
+            CurrentDefense *= 1.3f;
+        }
+
+        int FinalDamage = Mathf.RoundToInt(Damage * (1f - CurrentDefense / 100f));
+        int MinimumDamage = Mathf.CeilToInt(Damage * 0.1f);
+
+        if (FinalDamage < MinimumDamage)
+        {
+            FinalDamage = MinimumDamage;
+        }
+
+        if (GuardTurns > 0)
+        {
+            FinalDamage = Mathf.RoundToInt(FinalDamage * 0.7f);
+        }
+
+        Hp -= FinalDamage;
+
         if (Hp < 0)
         {
             Hp = 0;
@@ -179,7 +216,6 @@ public class PlayerManager : MonoBehaviour
 
         if (Hp <= 0)
         {
-            Debug.Log("�÷��̾� ���");
             if (TurnManager.instance != null)
             {
                 TurnManager.instance.BattleFail();
@@ -254,6 +290,12 @@ public class PlayerManager : MonoBehaviour
         UpdateUI();
     }
 
+    public void RestoreMp(int Amount)
+    {
+        Mp = Mathf.Min(MaxMp, Mp + Amount);
+        UpdateUI();
+    }
+
     public bool TrySpendGold(int Price)
     {
         if (Gold < Price)
@@ -268,13 +310,39 @@ public class PlayerManager : MonoBehaviour
 
     public void AddShopItem(int ItemNumber)
     {
-        if (ItemNumber == 1) RedPotion++;
-        if (ItemNumber == 2) BluePotion++;
-        if (ItemNumber == 3) PowerPotion++;
-        if (ItemNumber == 4) KnowledgePotion++;
-        if (ItemNumber == 5) DodgePotion++;
+        if (CanAddShopItem(ItemNumber) == false) return;
+
+        if (ItemNumber == 1) RedPotion = Mathf.Min(5, RedPotion + 1);
+        if (ItemNumber == 2) BluePotion = Mathf.Min(5, BluePotion + 1);
+        if (ItemNumber == 3) PowerPotion = Mathf.Min(1, PowerPotion + 1);
+        if (ItemNumber == 4) KnowledgePotion = Mathf.Min(1, KnowledgePotion + 1);
+        if (ItemNumber == 5) DodgePotion = Mathf.Min(1, DodgePotion + 1);
 
         UpdateUI();
+    }
+
+    public bool CanAddShopItem(int ItemNumber)
+    {
+        if (ItemNumber == 1) return RedPotion < 5;
+        if (ItemNumber == 2) return BluePotion < 5;
+        if (ItemNumber == 3) return PowerPotion < 1;
+        if (ItemNumber == 4) return KnowledgePotion < 1;
+        if (ItemNumber == 5) return DodgePotion < 1;
+        return false;
+    }
+
+    public bool UseItemCount(int ItemNumber)
+    {
+        if (GetItemCount(ItemNumber) <= 0) return false;
+
+        if (ItemNumber == 1) RedPotion--;
+        if (ItemNumber == 2) BluePotion--;
+        if (ItemNumber == 3) PowerPotion--;
+        if (ItemNumber == 4) KnowledgePotion--;
+        if (ItemNumber == 5) DodgePotion--;
+
+        UpdateUI();
+        return true;
     }
 
     public int GetItemCount(int ItemNumber)
@@ -284,6 +352,97 @@ public class PlayerManager : MonoBehaviour
         if (ItemNumber == 3) return PowerPotion;
         if (ItemNumber == 4) return KnowledgePotion;
         if (ItemNumber == 5) return DodgePotion;
+        return 0;
+    }
+
+    public int GetCurrentAttack()
+    {
+        if (PowerPotionTurns > 0)
+        {
+            return Mathf.RoundToInt(Attack * 1.3f);
+        }
+
+        return Attack;
+    }
+
+    public int CalculateSkillDamage(float DamageRate)
+    {
+        float Damage = GetCurrentAttack() * DamageRate;
+
+        if (KnowledgePotionTurns > 0)
+        {
+            Damage *= 1.3f;
+        }
+
+        return Mathf.RoundToInt(Damage);
+    }
+
+    public float GetCurrentDodge()
+    {
+        if (DodgePotionTurns > 0)
+        {
+            return Mathf.Clamp01(Dodge * 2f);
+        }
+
+        return Mathf.Clamp01(Dodge);
+    }
+
+    public void CountPotionBuffTurns()
+    {
+        if (PowerPotionTurns > 0) PowerPotionTurns--;
+        if (KnowledgePotionTurns > 0) KnowledgePotionTurns--;
+        if (DodgePotionTurns > 0) DodgePotionTurns--;
+    }
+
+    public int GetSkillCooldown(int SkillNumber)
+    {
+        if (SkillNumber < 1 || SkillNumber >= SkillCooldowns.Length)
+        {
+            return 0;
+        }
+
+        return SkillCooldowns[SkillNumber];
+    }
+
+    public void StartSkillCooldown(int SkillNumber)
+    {
+        int Cooldown = GetRequiredSkillCooldown(SkillNumber);
+
+        if (Cooldown > 0)
+        {
+            // 현재 행동이 끝날 때 바로 1 감소하므로 1을 더해서 저장한다.
+            SkillCooldowns[SkillNumber] = Cooldown + 1;
+        }
+    }
+
+    public void CountSkillCooldowns()
+    {
+        for (int SkillNumber = 1; SkillNumber < SkillCooldowns.Length; SkillNumber++)
+        {
+            if (SkillCooldowns[SkillNumber] > 0)
+            {
+                SkillCooldowns[SkillNumber]--;
+            }
+        }
+    }
+
+    public void ResetSkillCooldowns()
+    {
+        for (int SkillNumber = 1; SkillNumber < SkillCooldowns.Length; SkillNumber++)
+        {
+            SkillCooldowns[SkillNumber] = 0;
+        }
+    }
+
+    private int GetRequiredSkillCooldown(int SkillNumber)
+    {
+        if (SkillNumber == 4) return 5;
+        if (SkillNumber == 5) return 10;
+        if (SkillNumber == 8) return 2;
+        if (SkillNumber == 10) return 2;
+        if (SkillNumber == 11) return 1;
+        if (SkillNumber == 12) return 3;
+        if (SkillNumber == 13) return 10;
         return 0;
     }
 

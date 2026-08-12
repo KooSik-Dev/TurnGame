@@ -45,6 +45,12 @@ public class SaveButton : MonoBehaviour
             return;
         }
 
+        if (Type == 3 && PlayerManager.instance.CanAddShopItem(TypeNumber) == false)
+        {
+            SetStatusText("최대 보유 개수입니다.");
+            return;
+        }
+
         int Price = GetPrice();
 
         if (PlayerManager.instance.TrySpendGold(Price) == false)
